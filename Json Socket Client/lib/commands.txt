@@ -1,0 +1,77 @@
+getActorParameters
+{"jsonrpc":"2.0","result":[0,"ECSx3030",0,5000000,60000,false,false,20000,1,1000],"id":0}
+
+
+
+
+
+
+
+controlOutput
+This function sets or gets the status of the output relays of the selected axis.
+com.attocube.amc.control.setControlOutput
+com.attocube.amc.control.getControlOutput
+
+
+controlAmplitude
+This function sets or gets the amplitude of the actuator signal of the selected axis.
+
+controlFrequency
+This function sets or gets the frequency of the actuator signal of the selected axis.
+
+getActorName
+This function gets the name of the positioner of the selected axis.
+
+getActorType
+This function gets the type of the positioner of the selected axis.
+
+setReset
+This function resets the actual position of the selected axis to zero and marks the reference position as invalid.
+
+controlMove
+This function sets or gets the approach of the selected axis’ positioner to the target position
+
+setNSteps
+This function triggers n steps on the selected axis in desired direction.
+
+getNSteps
+This function triggers a single step in desired direction.
+
+controlContinousFwd
+This function sets a continuous movement on the selected axis in positive direction or it gets the axis’ movement status.
+
+controlContinousBkwd
+This function sets a continuous movement on the selected axis in backward direction or it gets the axis’ movement status.
+
+controlTargetPosition
+This function sets or gets the target position for the movement on the selected axis.
+
+getStatusReference
+This function gets information about the status of the reference position.
+
+getStatusMoving
+This function gets information about the status of the stage output
+
+getStatusConnected
+This function gets information about the connection status of the selected axis’ positioner.
+
+getReferencePosition
+This function gets the reference position of the selected axis
+
+getPosition
+This function gets the current position of the positioner on the selected axis.
+
+controlReferenceAutoUpdate
+This function sets and gets the status of whether the reference position is updated when the reference mark is hit.
+
+controlAutoReset
+This function resets the position every time the reference position is detected.
+
+controlTargetRange
+This function sets and gets the range around the target position in which the flag "In Target Range" (see VII.7.a) becomes active.
+
+getStatusTargetRange
+This function gets information about whether the selected axis’ positioner is in target range or not.
+
+getFirmwareVersion
+This function gets the version number of the controller’s firmware.
