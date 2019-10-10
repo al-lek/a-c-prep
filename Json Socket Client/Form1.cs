@@ -72,6 +72,9 @@ namespace Json_Socket_Client
             check_btn.Click += (s, e) => { atto_check(); };
             init_btn.Click += (s, e) => { atto_init(); };
             calib_btn.Click += (s, e) => { atto_calibrate(); };
+            wait_btn.Click += (s, e) => { atto_wait_sample(); };
+            lift_btn.Click += (s, e) => { atto_lift_sample(); };
+            center_btn.Click += (s, e) => { atto_center_sample(); };
         }
 
         #region high level atto comm
@@ -133,11 +136,36 @@ namespace Json_Socket_Client
 
         private bool atto_calibrate()
         {
-            // routine to find absolute positions
+            // routine of movements to find absolute positions
 
 
             return true;
         }
+
+        private bool atto_wait_sample()
+        {
+            // routine of movements to position holder safely away from shaft
+
+
+            return true;
+        }
+
+        private bool atto_lift_sample()
+        {
+            // routine of movements to position holder safely away from shaft
+
+
+            return true;
+        }
+
+        private bool atto_center_sample()
+        {
+            // routine of movements to position holder at the center of optical axis
+
+
+            return true;
+        }
+
         #endregion
 
         private void send()
@@ -233,17 +261,6 @@ namespace Json_Socket_Client
 
 
     #region Notes
-    //var command = new
-    //{
-    //    jsonrpc = "2.0",
-    //    method = methods,
-    //    @params = parameters,
-    //    id = id
-    //};
-    //string jsonData = JsonConvert.SerializeObject(command);
-    //jsonData += "\n";
-    //richTextBox1.AppendText(jsonData + "\n");
-
 
     #endregion
 }

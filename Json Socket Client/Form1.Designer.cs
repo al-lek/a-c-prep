@@ -35,6 +35,9 @@
             this.init_btn = new System.Windows.Forms.Button();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.calib_btn = new System.Windows.Forms.Button();
+            this.wait_btn = new System.Windows.Forms.Button();
+            this.lift_btn = new System.Windows.Forms.Button();
+            this.center_btn = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // conn_btn
@@ -90,12 +93,39 @@
             // 
             // calib_btn
             // 
-            this.calib_btn.Location = new System.Drawing.Point(37, 155);
+            this.calib_btn.Location = new System.Drawing.Point(37, 201);
             this.calib_btn.Name = "calib_btn";
             this.calib_btn.Size = new System.Drawing.Size(75, 23);
             this.calib_btn.TabIndex = 0;
             this.calib_btn.Text = "calibrate";
             this.calib_btn.UseVisualStyleBackColor = true;
+            // 
+            // wait_btn
+            // 
+            this.wait_btn.Location = new System.Drawing.Point(37, 230);
+            this.wait_btn.Name = "wait_btn";
+            this.wait_btn.Size = new System.Drawing.Size(75, 23);
+            this.wait_btn.TabIndex = 0;
+            this.wait_btn.Text = "wait";
+            this.wait_btn.UseVisualStyleBackColor = true;
+            // 
+            // lift_btn
+            // 
+            this.lift_btn.Location = new System.Drawing.Point(37, 259);
+            this.lift_btn.Name = "lift_btn";
+            this.lift_btn.Size = new System.Drawing.Size(75, 23);
+            this.lift_btn.TabIndex = 0;
+            this.lift_btn.Text = "lift";
+            this.lift_btn.UseVisualStyleBackColor = true;
+            // 
+            // center_btn
+            // 
+            this.center_btn.Location = new System.Drawing.Point(37, 288);
+            this.center_btn.Name = "center_btn";
+            this.center_btn.Size = new System.Drawing.Size(75, 23);
+            this.center_btn.TabIndex = 0;
+            this.center_btn.Text = "center";
+            this.center_btn.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
@@ -104,6 +134,9 @@
             this.ClientSize = new System.Drawing.Size(738, 389);
             this.Controls.Add(this.textBox1);
             this.Controls.Add(this.richTextBox1);
+            this.Controls.Add(this.center_btn);
+            this.Controls.Add(this.lift_btn);
+            this.Controls.Add(this.wait_btn);
             this.Controls.Add(this.calib_btn);
             this.Controls.Add(this.init_btn);
             this.Controls.Add(this.check_btn);
@@ -125,6 +158,9 @@
         private System.Windows.Forms.Button init_btn;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Button calib_btn;
+        private System.Windows.Forms.Button wait_btn;
+        private System.Windows.Forms.Button lift_btn;
+        private System.Windows.Forms.Button center_btn;
     }
 }
 
