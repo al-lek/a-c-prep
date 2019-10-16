@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Threading;
 
 using System.IO;
 using System.Net.Sockets;
@@ -18,9 +19,16 @@ namespace Json_Socket_Client
     public partial class Form1 : Form
     {
         Socket socket;
+        bool connected = false;
+
+        bool[] atto_connected = new bool[] { false, false, false };
+        string[] atto_positions = new string[] { "0", "0", "0" };
+        TextBox[] atto_rdb;
+
         int[] atto_mVolt = new int[] { 30000, 30000, 30000 };
         int[] atto_mVoltDC = new int[] { 0, 0, 0 };
         int[] atto_mHz = new int[] { 1001000, 1001000, 1001000 };
+
 
         List<string> commands = new List<string> {
             //"com.attocube.amc.description.getPositionersList",
@@ -62,19 +70,33 @@ namespace Json_Socket_Client
         {
             InitializeComponent();
 
+            atto_rdb = new TextBox[] { fbPos_txtBox, udPos_txtBox, lrPos_txtBox };
+
             conn_btn.Click += (s, e) =>
             {
                 Button btn = (Button)s;
-                if (btn.Text == "Connect") { atto_conn(true); btn.Text = "Disconnect"; }
-                else { atto_conn(false); btn.Text = "Connect"; }
+                if (btn.Text == "Connect")
+                {
+                    atto_conn(true); btn.Text = "Disconnect"; connected = true;
+
+                    Thread rdb = new Thread(readback_loop);
+                    rdb.Start();
+                }
+                else { connected = false; atto_conn(false); btn.Text = "Connect"; }
             };
-            set_btn.Click += (s, e) => { send(); };
-            check_btn.Click += (s, e) => { atto_check(); };
-            init_btn.Click += (s, e) => { atto_init(); };
+
+            check_btn.Click += (s, e) => { richTextBox1.AppendText("Check status: " + atto_check() + "\n"); };
+            init_btn.Click += (s, e) => { richTextBox1.AppendText("Initialization status: " + atto_init() + "\n"); };
             calib_btn.Click += (s, e) => { atto_calibrate(); };
             wait_btn.Click += (s, e) => { atto_wait_sample(); };
             lift_btn.Click += (s, e) => { atto_lift_sample(); };
             center_btn.Click += (s, e) => { atto_center_sample(); };
+
+
+            move_btn.Click += (s, e) =>
+            {
+                richTextBox1.AppendText("Move: " + atto_move(str_to_int(axis_txt.Text), str_to_int(pos_txtBox.Text)) + "\n");
+            };
         }
 
         #region high level atto comm
@@ -105,7 +127,7 @@ namespace Json_Socket_Client
             bool ok = true;
 
             for (int i = 0; i < 3; i++)
-                if (!str_to_bool(transmit_receive(comm_check, 0, new int[] { i })[1]))
+                if (!str_to_bool(transmit_receive(comm_check, 0, new object[] { i })[1]))
                     ok = false;
 
             return ok;
@@ -117,10 +139,13 @@ namespace Json_Socket_Client
             string mvolt_init = "com.attocube.amc.control.setControlAmplitude";
             //string mvoltDC_init = "com.attocube.amc.control.setControlFixOutputVoltage";
             string mHz_init = "com.attocube.amc.control.setControlFrequency";
+            string enable_axis = "com.attocube.amc.control.setControlOutput";
+            string enable_axis_move = "com.attocube.amc.control.setControlMove";
+
             bool ok = true;
 
             for (int i = 0; i < 3; i++)
-                if (str_to_int(transmit_receive(mvolt_init, 0, new int[] { i, atto_mVolt[i] })[0]) != 0)
+                if (str_to_int(transmit_receive(mvolt_init, 0, new object[] { i, atto_mVolt[i] })[0]) != 0)
                     ok = false;
 
             //for (int i = 0; i < 3; i++)
@@ -128,7 +153,15 @@ namespace Json_Socket_Client
             //        ok = false;
 
             for (int i = 0; i < 3; i++)
-                if (str_to_int(transmit_receive(mHz_init, 0, new int[] { i, atto_mHz[i] })[0]) != 0)
+                if (str_to_int(transmit_receive(mHz_init, 0, new object[] { i, atto_mHz[i] })[0]) != 0)
+                    ok = false;
+
+            for (int i = 0; i < 3; i++)
+                if (str_to_int(transmit_receive(enable_axis, 0, new object[] { i, true })[0]) != 0)
+                    ok = false;
+
+            for (int i = 0; i < 3; i++)
+                if (str_to_int(transmit_receive(enable_axis_move, 0, new object[] { i, true })[0]) != 0)
                     ok = false;
 
             return ok;
@@ -168,23 +201,70 @@ namespace Json_Socket_Client
 
         #endregion
 
-        private void send()
+
+        #region mid-level atto comm
+        private void readback_loop()
         {
-            int idx = Convert.ToInt32(textBox1.Text);
-            int[] axis = new int[] { 2 };
+            string comm_check = "com.attocube.amc.status.getStatusConnected";
+            string position_rdb = "com.attocube.amc.move.getPosition";
+            bool ok;
 
-            string[] response = transmit_receive(commands[idx], 0, axis);
+            while (connected)
+            {
+                // ensure all actuators are up
+                for (int i = 0; i < 3; i++)
+                    if (!str_to_bool(transmit_receive(comm_check, 0, new object[] { i })[1]))
+                        ok = false;
 
-            if (response == null) return;
+                for (int i = 0; i < 3; i++)
+                {
+                    string[] res = transmit_receive(position_rdb, 0, new object[] { i });
 
-            richTextBox1.AppendText(commands[idx] + "\n");
-            foreach (string str in response) richTextBox1.AppendText(str + "\t");
-            richTextBox1.AppendText("\n");
+                    if ((res[0] == "0")) atto_positions[i] = res[1];
+                    else break;
+                }
+
+                rdb_to_UI();
+                Thread.Sleep(50);
+            }
         }
 
+        private void rdb_to_UI()
+        {
+            // connected
+            for (int i = 0; i < 3; i++)
+            {
+                atto_rdb[i].Invoke((Action)(()=> { atto_rdb[i].Text = atto_positions[i]; }));
+            }
+
+        }
+
+        private bool atto_enable_axis()
+        {
+            string enable_axis = "com.attocube.amc.control.setControlMove";
+            bool ok = true;
+
+            for (int i = 0; i < 3; i++)
+                if (str_to_int(transmit_receive(enable_axis, 0, new object[] { i, true })[0]) != 0)
+                    ok = false;
+
+            return ok;
+        }
+
+        private bool atto_move(int axis, int pos)
+        {
+            string move_to_pos = "com.attocube.amc.move.setControlTargetPosition";            
+            bool ok = true;
+
+            if (str_to_int(transmit_receive(move_to_pos, 0, new object[] { axis, pos })[0]) != 0)
+                ok = false;
+
+            return ok;
+        }
+        #endregion
 
         #region low Level atto comm
-        private string[] transmit_receive(string method, int id, int[] parameters = null)
+        private string[] transmit_receive(string method, int id, object[] parameters = null)
         {
             // 1. transmit command
             byte[] cmd_bytes = generate_command(method, id, parameters);
@@ -210,7 +290,7 @@ namespace Json_Socket_Client
             return response;
         }
 
-        private byte[] generate_command(string methods, int id, int[] parameters = null)
+        private byte[] generate_command(string methods, int id, object[] parameters = null)
         {
             Command cmd = new Command { jsonrpc = "2.0", method = methods, @params = parameters, id = id };
             string cmd_str = JsonConvert.SerializeObject(cmd);
@@ -229,7 +309,7 @@ namespace Json_Socket_Client
         {
             public string jsonrpc { get; set; }
             public string method { get; set; }
-            public int[] @params { get; set; }
+            public object[] @params { get; set; }
             public int id { get; set; }
         }
 
