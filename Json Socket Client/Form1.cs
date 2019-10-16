@@ -22,9 +22,13 @@ namespace Json_Socket_Client
         bool connected = false;
 
         bool[] atto_connected = new bool[] { false, false, false };
-        string[] atto_positions = new string[] { "0", "0", "0" };
-        TextBox[] atto_rdb;
+        bool[] atto_ref = new bool[] { false, false, false };
 
+        string[] atto_ref_pos = new string[] { "N/A", "N/A", "N/A" };
+        string[] atto_positions = new string[] { "0", "0", "0" };
+        TextBox[] atto_rdbUI, atto_refUI;
+
+        int[] atto_safe_EOT = new int[] { 30000000, -20000000, -20000000 };
         int[] atto_mVolt = new int[] { 30000, 30000, 30000 };
         int[] atto_mVoltDC = new int[] { 0, 0, 0 };
         int[] atto_mHz = new int[] { 1001000, 1001000, 1001000 };
@@ -70,7 +74,8 @@ namespace Json_Socket_Client
         {
             InitializeComponent();
 
-            atto_rdb = new TextBox[] { fbPos_txtBox, udPos_txtBox, lrPos_txtBox };
+            atto_rdbUI = new TextBox[] { udPos_txtBox, fbPos_txtBox, lrPos_txtBox };
+            atto_refUI = new TextBox[] { udRef_txtBox, fbRef_txtBox, lrRef_txtBox };
 
             conn_btn.Click += (s, e) =>
             {
@@ -95,7 +100,7 @@ namespace Json_Socket_Client
 
             move_btn.Click += (s, e) =>
             {
-                richTextBox1.AppendText("Move: " + atto_move(str_to_int(axis_txt.Text), str_to_int(pos_txtBox.Text)) + "\n");
+                richTextBox1.AppendText("Move: " + atto_move(str_to_int(axis_txt.Text), Convert.ToInt32(str_to_double(pos_txtBox.Text) * 1e3)) + "\n");
             };
         }
 
@@ -169,8 +174,46 @@ namespace Json_Socket_Client
 
         private bool atto_calibrate()
         {
-            // routine of movements to find absolute positions
+            MessageBox.Show("Make sure sample arm is not near sapmle holder!!!");
 
+            // reset refs????
+
+            // routine of movements to find absolute positions
+            for (int i = 0; i < 3; i++)
+            {
+                int starting_pos = str_to_int(atto_positions[i]);
+
+                // move towards safe extreme and monitor refPoint or EOT
+                atto_move(i, atto_safe_EOT[i]);
+                while (true)
+                {
+                    if (atto_ref[i] || (Math.Abs(starting_pos - str_to_int(atto_positions[i])) < 10))
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine(Math.Abs(starting_pos - str_to_int(atto_positions[i])).ToString());
+                        starting_pos = str_to_int(atto_positions[i]);
+                    }
+                    Thread.Sleep(150);
+                }
+
+                if (!atto_ref[i]) atto_move(i, str_to_int(atto_ref_pos[i]));
+                else
+                {
+                    atto_move(i, -Convert.ToInt32(1.1 * atto_safe_EOT[i]));
+
+                    while (true)
+                    {
+                        if (!atto_ref[i] || (Math.Abs(starting_pos - str_to_int(atto_positions[i])) > 10))
+                            starting_pos = str_to_int(atto_positions[i]);
+                        else break;
+                        Thread.Sleep(150);
+                    }
+                }
+                if (!atto_ref[i]) atto_move(i, str_to_int(atto_ref_pos[i]));
+            }
 
             return true;
         }
@@ -207,26 +250,37 @@ namespace Json_Socket_Client
         {
             string comm_check = "com.attocube.amc.status.getStatusConnected";
             string position_rdb = "com.attocube.amc.move.getPosition";
-            bool ok;
+            string ref_rdb = "com.attocube.amc.status.getStatusReference";
+            string ref_pos_rdb = "com.attocube.amc.control.getReferencePosition";
+            int i_error = -1;
 
             while (connected)
             {
-                // ensure all actuators are up
-                for (int i = 0; i < 3; i++)
-                    if (!str_to_bool(transmit_receive(comm_check, 0, new object[] { i })[1]))
-                        ok = false;
-
-                for (int i = 0; i < 3; i++)
+                try
                 {
-                    string[] res = transmit_receive(position_rdb, 0, new object[] { i });
+                    // ensure all actuators are up
+                    for (int i = 0; i < 3; i++)
+                    {
+                        // 1. check actuators connection
+                        if (!str_to_bool(transmit_receive(comm_check, 0, new object[] { i })[1]))
+                        { i_error = i; break; }
 
-                    if ((res[0] == "0")) atto_positions[i] = res[1];
-                    else break;
+                        // 2. check cloosed loop position
+                        atto_positions[i] = transmit_receive(position_rdb, 0, new object[] { i })[1];
+
+                        // 3. check if reference is crossed and get value
+                        atto_ref[i] = str_to_bool(transmit_receive(ref_rdb, 0, new object[] { i })[1]);
+
+                        if (atto_ref[i])
+                            atto_ref_pos[i] = transmit_receive(ref_pos_rdb, 0, new object[] { i })[1];
+                    }
                 }
+                catch { Console.WriteLine("readback loop ex!"); }
 
                 rdb_to_UI();
                 Thread.Sleep(50);
             }
+            if (i_error > -1) MessageBox.Show("Actuator: " + i_error + " has lost connection!\nCheck power and cabling. Terminating connection with attocubes!");
         }
 
         private void rdb_to_UI()
@@ -234,7 +288,9 @@ namespace Json_Socket_Client
             // connected
             for (int i = 0; i < 3; i++)
             {
-                atto_rdb[i].Invoke((Action)(()=> { atto_rdb[i].Text = atto_positions[i]; }));
+                atto_rdbUI[i].Invoke((Action)(()=> { atto_rdbUI[i].Text = (Convert.ToDouble(atto_positions[i]) * 1e-3).ToString("0.#"); }));
+                if (atto_ref_pos[i] != "N/A")
+                    atto_refUI[i].Invoke((Action)(() => { atto_refUI[i].Text = (Convert.ToDouble(atto_ref_pos[i]) * 1e-3).ToString("0.#"); }));
             }
 
         }
@@ -332,6 +388,11 @@ namespace Json_Socket_Client
         private int str_to_int(string str)
         {
             return Convert.ToInt32(str);
+        }
+
+        private double str_to_double(string str)
+        {
+            return Convert.ToDouble(str);
         }
 
         #endregion

@@ -45,6 +45,12 @@
             this.udPos_txtBox = new System.Windows.Forms.TextBox();
             this.lrPos_txtBox = new System.Windows.Forms.TextBox();
             this.fbPos_txtBox = new System.Windows.Forms.TextBox();
+            this.label3 = new System.Windows.Forms.Label();
+            this.label4 = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
+            this.udRef_txtBox = new System.Windows.Forms.TextBox();
+            this.lrRef_txtBox = new System.Windows.Forms.TextBox();
+            this.fbRef_txtBox = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // conn_btn
@@ -76,9 +82,9 @@
             // 
             // richTextBox1
             // 
-            this.richTextBox1.Location = new System.Drawing.Point(141, 76);
+            this.richTextBox1.Location = new System.Drawing.Point(141, 113);
             this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(585, 289);
+            this.richTextBox1.Size = new System.Drawing.Size(585, 252);
             this.richTextBox1.TabIndex = 1;
             this.richTextBox1.Text = "";
             // 
@@ -172,7 +178,7 @@
             // 
             // udPos_txtBox
             // 
-            this.udPos_txtBox.Location = new System.Drawing.Point(323, 38);
+            this.udPos_txtBox.Location = new System.Drawing.Point(384, 12);
             this.udPos_txtBox.Name = "udPos_txtBox";
             this.udPos_txtBox.Size = new System.Drawing.Size(47, 20);
             this.udPos_txtBox.TabIndex = 2;
@@ -180,7 +186,7 @@
             // 
             // lrPos_txtBox
             // 
-            this.lrPos_txtBox.Location = new System.Drawing.Point(376, 38);
+            this.lrPos_txtBox.Location = new System.Drawing.Point(384, 64);
             this.lrPos_txtBox.Name = "lrPos_txtBox";
             this.lrPos_txtBox.Size = new System.Drawing.Size(47, 20);
             this.lrPos_txtBox.TabIndex = 2;
@@ -188,21 +194,78 @@
             // 
             // fbPos_txtBox
             // 
-            this.fbPos_txtBox.Location = new System.Drawing.Point(429, 38);
+            this.fbPos_txtBox.Location = new System.Drawing.Point(384, 38);
             this.fbPos_txtBox.Name = "fbPos_txtBox";
             this.fbPos_txtBox.Size = new System.Drawing.Size(47, 20);
             this.fbPos_txtBox.TabIndex = 2;
             this.fbPos_txtBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(324, 15);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(58, 13);
+            this.label3.TabIndex = 4;
+            this.label3.Text = "Up - Down";
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(317, 41);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(65, 13);
+            this.label4.TabIndex = 4;
+            this.label4.Text = "Front - Back";
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(323, 67);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(59, 13);
+            this.label5.TabIndex = 4;
+            this.label5.Text = "Left - Right";
+            // 
+            // udRef_txtBox
+            // 
+            this.udRef_txtBox.Location = new System.Drawing.Point(511, 12);
+            this.udRef_txtBox.Name = "udRef_txtBox";
+            this.udRef_txtBox.Size = new System.Drawing.Size(47, 20);
+            this.udRef_txtBox.TabIndex = 2;
+            this.udRef_txtBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // lrRef_txtBox
+            // 
+            this.lrRef_txtBox.Location = new System.Drawing.Point(511, 64);
+            this.lrRef_txtBox.Name = "lrRef_txtBox";
+            this.lrRef_txtBox.Size = new System.Drawing.Size(47, 20);
+            this.lrRef_txtBox.TabIndex = 2;
+            this.lrRef_txtBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // fbRef_txtBox
+            // 
+            this.fbRef_txtBox.Location = new System.Drawing.Point(511, 38);
+            this.fbRef_txtBox.Name = "fbRef_txtBox";
+            this.fbRef_txtBox.Size = new System.Drawing.Size(47, 20);
+            this.fbRef_txtBox.TabIndex = 2;
+            this.fbRef_txtBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(738, 377);
+            this.Controls.Add(this.label5);
+            this.Controls.Add(this.label4);
+            this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
+            this.Controls.Add(this.fbRef_txtBox);
             this.Controls.Add(this.fbPos_txtBox);
+            this.Controls.Add(this.lrRef_txtBox);
             this.Controls.Add(this.lrPos_txtBox);
+            this.Controls.Add(this.udRef_txtBox);
             this.Controls.Add(this.udPos_txtBox);
             this.Controls.Add(this.pos_txtBox);
             this.Controls.Add(this.axis_txt);
@@ -242,6 +305,12 @@
         private System.Windows.Forms.TextBox udPos_txtBox;
         private System.Windows.Forms.TextBox lrPos_txtBox;
         private System.Windows.Forms.TextBox fbPos_txtBox;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.TextBox udRef_txtBox;
+        private System.Windows.Forms.TextBox lrRef_txtBox;
+        private System.Windows.Forms.TextBox fbRef_txtBox;
     }
 }
 
