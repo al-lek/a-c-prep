@@ -20,6 +20,7 @@ namespace Json_Socket_Client
     {
         Socket socket;
         bool connected = false;
+        private static readonly Object _lock = new Object();
 
         bool[] atto_connected = new bool[] { false, false, false };
         bool[] atto_ref = new bool[] { false, false, false };
@@ -29,7 +30,7 @@ namespace Json_Socket_Client
         TextBox[] atto_rdbUI, atto_refUI;
 
         int[] atto_safe_EOT = new int[] { 30000000, -20000000, -20000000 };
-        int[] atto_mVolt = new int[] { 30000, 30000, 30000 };
+        int[] atto_mVolt = new int[] { 40000, 35000, 35000 };
         int[] atto_mVoltDC = new int[] { 0, 0, 0 };
         int[] atto_mHz = new int[] { 1001000, 1001000, 1001000 };
 
@@ -92,7 +93,11 @@ namespace Json_Socket_Client
 
             check_btn.Click += (s, e) => { richTextBox1.AppendText("Check status: " + atto_check() + "\n"); };
             init_btn.Click += (s, e) => { richTextBox1.AppendText("Initialization status: " + atto_init() + "\n"); };
-            calib_btn.Click += (s, e) => { atto_calibrate(); };
+            calib_btn.Click += (s, e) => 
+            {
+                Thread calib = new Thread(atto_calibrate);
+                calib.Start();
+            };
             wait_btn.Click += (s, e) => { atto_wait_sample(); };
             lift_btn.Click += (s, e) => { atto_lift_sample(); };
             center_btn.Click += (s, e) => { atto_center_sample(); };
@@ -114,6 +119,9 @@ namespace Json_Socket_Client
 
                 if (socket.Connected) richTextBox1.AppendText("connected..." + "\n");
                 else richTextBox1.AppendText("connection fail..." + "\n");
+
+                atto_check();
+                atto_init();
             }
             else
             {
@@ -128,12 +136,10 @@ namespace Json_Socket_Client
         private bool atto_check()
         {
             // ensure all actuators are up
-            string comm_check = "com.attocube.amc.status.getStatusConnected";
             bool ok = true;
 
             for (int i = 0; i < 3; i++)
-                if (!str_to_bool(transmit_receive(comm_check, 0, new object[] { i })[1]))
-                    ok = false;
+                if (!axis_online(i)) ok = false;
 
             return ok;
         }
@@ -166,56 +172,51 @@ namespace Json_Socket_Client
                     ok = false;
 
             for (int i = 0; i < 3; i++)
+            {
+                atto_move(i, 0);
                 if (str_to_int(transmit_receive(enable_axis_move, 0, new object[] { i, true })[0]) != 0)
                     ok = false;
-
+            }
             return ok;
         }
 
-        private bool atto_calibrate()
+        private void atto_calibrate()
         {
             MessageBox.Show("Make sure sample arm is not near sapmle holder!!!");
 
             // reset refs????
+            atto_ref = new bool[] { false, false, false };
 
             // routine of movements to find absolute positions
             for (int i = 0; i < 3; i++)
             {
-                int starting_pos = str_to_int(atto_positions[i]);
-
-                // move towards safe extreme and monitor refPoint or EOT
+                // 1. start moving towards a safe direction
                 atto_move(i, atto_safe_EOT[i]);
+
                 while (true)
                 {
-                    if (atto_ref[i] || (Math.Abs(starting_pos - str_to_int(atto_positions[i])) < 10))
+                    // 2. check if reference is crossed
+                    if (atto_ref[i])
                     {
-                        break;
+                        Console.WriteLine("found ref!");
+                        atto_enable_axis(i, false); break;
                     }
-                    else
-                    {
-                        Console.WriteLine(Math.Abs(starting_pos - str_to_int(atto_positions[i])).ToString());
-                        starting_pos = str_to_int(atto_positions[i]);
-                    }
-                    Thread.Sleep(150);
+
+                    // 3. if you find end of travel point move to the oposite direction
+                    if (atto_end_of_travel(i)) atto_move(i, -atto_safe_EOT[i]);
                 }
 
-                if (!atto_ref[i]) atto_move(i, str_to_int(atto_ref_pos[i]));
-                else
-                {
-                    atto_move(i, -Convert.ToInt32(1.1 * atto_safe_EOT[i]));
+                // 4. goto reference mark and set this as the new zero
+                //atto_move(i, str_to_int(atto_ref_pos[i]));
 
-                    while (true)
-                    {
-                        if (!atto_ref[i] || (Math.Abs(starting_pos - str_to_int(atto_positions[i])) > 10))
-                            starting_pos = str_to_int(atto_positions[i]);
-                        else break;
-                        Thread.Sleep(150);
-                    }
-                }
-                if (!atto_ref[i]) atto_move(i, str_to_int(atto_ref_pos[i]));
+                Console.WriteLine(atto_ref_pos[i]);
+
+                // 5. set this position as zero
+                axis_ref_reset(i);
+
+                atto_move(i, 0);
+                atto_enable_axis(i, true);
             }
-
-            return true;
         }
 
         private bool atto_wait_sample()
@@ -248,10 +249,7 @@ namespace Json_Socket_Client
         #region mid-level atto comm
         private void readback_loop()
         {
-            string comm_check = "com.attocube.amc.status.getStatusConnected";
-            string position_rdb = "com.attocube.amc.move.getPosition";
-            string ref_rdb = "com.attocube.amc.status.getStatusReference";
-            string ref_pos_rdb = "com.attocube.amc.control.getReferencePosition";
+            // mail readback loop
             int i_error = -1;
 
             while (connected)
@@ -262,17 +260,16 @@ namespace Json_Socket_Client
                     for (int i = 0; i < 3; i++)
                     {
                         // 1. check actuators connection
-                        if (!str_to_bool(transmit_receive(comm_check, 0, new object[] { i })[1]))
-                        { i_error = i; break; }
+                        if (!axis_online(i)) { i_error = i; break; }
 
                         // 2. check cloosed loop position
-                        atto_positions[i] = transmit_receive(position_rdb, 0, new object[] { i })[1];
+                        atto_positions[i] = axis_rbd(i);
 
                         // 3. check if reference is crossed and get value
-                        atto_ref[i] = str_to_bool(transmit_receive(ref_rdb, 0, new object[] { i })[1]);
+                        atto_ref[i] = axis_ref(i);
 
-                        if (atto_ref[i])
-                            atto_ref_pos[i] = transmit_receive(ref_pos_rdb, 0, new object[] { i })[1];
+                        // 4. get reference position
+                        if (atto_ref[i]) atto_ref_pos[i] = axis_ref_rbd(i);
                     }
                 }
                 catch { Console.WriteLine("readback loop ex!"); }
@@ -295,21 +292,36 @@ namespace Json_Socket_Client
 
         }
 
-        private bool atto_enable_axis()
+        #endregion
+
+        #region low Level atto comm
+        private bool axis_online(int axis)
         {
-            string enable_axis = "com.attocube.amc.control.setControlMove";
-            bool ok = true;
+            string comm_check = "com.attocube.amc.status.getStatusConnected";
+            return str_to_bool(transmit_receive(comm_check, 0, new object[] { axis })[1]);
+        }
 
-            for (int i = 0; i < 3; i++)
-                if (str_to_int(transmit_receive(enable_axis, 0, new object[] { i, true })[0]) != 0)
-                    ok = false;
+        private string axis_rbd(int axis)
+        {
+            string position_rdb = "com.attocube.amc.move.getPosition";
+            return transmit_receive(position_rdb, 0, new object[] { axis })[1];
+        }
 
-            return ok;
+        private bool axis_ref(int axis)
+        {
+            string ref_rdb = "com.attocube.amc.status.getStatusReference";
+            return str_to_bool(transmit_receive(ref_rdb, 0, new object[] { axis })[1]);
+        }
+
+        private string axis_ref_rbd(int axis)
+        {
+            string ref_pos_rdb = "com.attocube.amc.control.getReferencePosition";
+            return transmit_receive(ref_pos_rdb, 0, new object[] { axis })[1];
         }
 
         private bool atto_move(int axis, int pos)
         {
-            string move_to_pos = "com.attocube.amc.move.setControlTargetPosition";            
+            string move_to_pos = "com.attocube.amc.move.setControlTargetPosition";
             bool ok = true;
 
             if (str_to_int(transmit_receive(move_to_pos, 0, new object[] { axis, pos })[0]) != 0)
@@ -317,33 +329,77 @@ namespace Json_Socket_Client
 
             return ok;
         }
-        #endregion
 
-        #region low Level atto comm
+        private bool atto_end_of_travel(int axis)
+        {
+            string end_of_travel_fwd = "com.attocube.amc.status.getStatusEotFwd";
+            string end_of_travel_bkwd = "com.attocube.amc.status.getStatusEotBkwd";
+            bool eot_reached_f = false;
+            bool eot_reached_b = false;
+
+            eot_reached_f = str_to_bool(transmit_receive(end_of_travel_fwd, 0, new object[] { axis })[1]);
+            eot_reached_b = str_to_bool(transmit_receive(end_of_travel_bkwd, 0, new object[] { axis })[1]);
+
+            //Console.WriteLine("f:" + eot_reached_f.ToString() + " b:" + eot_reached_b.ToString());
+
+            return eot_reached_f | eot_reached_b;
+        }
+
+        private void atto_get_eotSetinngs(int axis)
+        {
+            string get_eotSetting = "com.attocube.amc.move.getControlEotOutputDeactive";
+            bool output = false;
+
+            output = str_to_bool(transmit_receive(get_eotSetting, 0, new object[] { axis })[1]);
+
+        }
+
+        private bool atto_enable_axis(int axis, bool enable)
+        {
+            string enable_axis = "com.attocube.amc.control.setControlMove";
+            bool ok = true;
+
+            if (str_to_int(transmit_receive(enable_axis, 0, new object[] { axis, enable })[0]) != 0)
+                ok = false;
+
+            return ok;
+        }
+
+        private int axis_ref_reset(int axis)
+        {
+            string ref_reset = "com.attocube.amc.control.setReset";
+            return str_to_int(transmit_receive(ref_reset, 0, new object[] { axis })[0]);
+        }
+
+        
+
         private string[] transmit_receive(string method, int id, object[] parameters = null)
         {
-            // 1. transmit command
-            byte[] cmd_bytes = generate_command(method, id, parameters);
-            socket.Send(cmd_bytes);
-
-            // 2. get response
-            byte[] buffer = new byte[1024 * 4];
-            int readBytes = socket.Receive(buffer);
-            MemoryStream memoryStream = new MemoryStream();
-            while (readBytes > 0)
+            lock (_lock)
             {
-                memoryStream.Write(buffer, 0, readBytes);
-                if (socket.Available > 0)
-                    readBytes = socket.Receive(buffer);
-                else break;
-            }
-            byte[] resp_bytes = memoryStream.ToArray();
-            memoryStream.Close();
+                // 1. transmit command
+                byte[] cmd_bytes = generate_command(method, id, parameters);
+                socket.Send(cmd_bytes);
 
-            // 3. resolve
-            string[] response = resolve_response(resp_bytes);
-            if (response == null) MessageBox.Show("Error!!!");
-            return response;
+                // 2. get response
+                byte[] buffer = new byte[1024 * 4];
+                int readBytes = socket.Receive(buffer);
+                MemoryStream memoryStream = new MemoryStream();
+                while (readBytes > 0)
+                {
+                    memoryStream.Write(buffer, 0, readBytes);
+                    if (socket.Available > 0)
+                        readBytes = socket.Receive(buffer);
+                    else break;
+                }
+                byte[] resp_bytes = memoryStream.ToArray();
+                memoryStream.Close();
+
+                // 3. resolve
+                string[] response = resolve_response(resp_bytes);
+                if (response == null) MessageBox.Show("Error!!!");
+                return response;
+            }
         }
 
         private byte[] generate_command(string methods, int id, object[] parameters = null)
@@ -402,6 +458,35 @@ namespace Json_Socket_Client
 
 
     #region Notes
+    //int starting_pos = str_to_int(atto_positions[i]);
+    //int j = 0;
+    //int step = 100000;
+
+    //while (true)
+    //{
+    //    if (atto_ref[i])
+    //    {
+    //        Console.WriteLine("found ref!");
+    //        atto_enable_axis(i, false); break;
+    //    }
+
+    //    j++;
+    //    int next_pos = starting_pos + j * step;
+
+    //    atto_move(i, next_pos);
+    //    Thread.Sleep(250);
+
+    //    int dx = Math.Abs(next_pos - str_to_int(atto_positions[i]));
+    //    Console.WriteLine("dx: " + dx.ToString());
+
+    //    if (dx > 500)
+    //    {
+    //        Console.WriteLine("eot found!");
+    //        starting_pos = str_to_int(atto_positions[i]);
+    //        j = 0;
+    //        step = -step;
+    //    }                    
+    //}
 
     #endregion
 }
