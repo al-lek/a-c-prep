@@ -90,6 +90,11 @@ namespace Json_Socket_Client
                 }
                 else { connected = false; atto_conn(false); btn.Text = "Connect"; }
             };
+            enable_btn.Click += (s, e) =>
+            {
+                bool enable = ((Button)s).Text == "Enable";
+                atto_enable(enable);
+            };
 
             check_btn.Click += (s, e) => { richTextBox1.AppendText("Check status: " + atto_check() + "\n"); };
             init_btn.Click += (s, e) => { richTextBox1.AppendText("Initialization status: " + atto_init() + "\n"); };
@@ -107,6 +112,8 @@ namespace Json_Socket_Client
             {
                 richTextBox1.AppendText("Move: " + atto_move(str_to_int(axis_txt.Text), Convert.ToInt32(str_to_double(pos_txtBox.Text) * 1e3)) + "\n");
             };
+
+            FormClosing += (s, e) => { atto_conn(false); };
         }
 
         #region high level atto comm
@@ -142,6 +149,11 @@ namespace Json_Socket_Client
                 if (!axis_online(i)) ok = false;
 
             return ok;
+        }
+
+        private void atto_enable(bool enable)
+        {
+            for (int i = 0; i < 3; i++) atto_enable(enable);            
         }
 
         private bool atto_init()
@@ -207,15 +219,13 @@ namespace Json_Socket_Client
                 }
 
                 // 4. goto reference mark and set this as the new zero
-                //atto_move(i, str_to_int(atto_ref_pos[i]));
-
                 Console.WriteLine(atto_ref_pos[i]);
-
+                atto_enable_axis(i, true);
+                atto_move(i, str_to_int(atto_positions[i]) - str_to_int(atto_ref_pos[i]));
+                
                 // 5. set this position as zero
                 axis_ref_reset(i);
-
-                atto_move(i, 0);
-                atto_enable_axis(i, true);
+                // atto_move(i, 0);                
             }
         }
 

@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.conn_btn = new System.Windows.Forms.Button();
-            this.set_btn = new System.Windows.Forms.Button();
+            this.enable_btn = new System.Windows.Forms.Button();
             this.check_btn = new System.Windows.Forms.Button();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.init_btn = new System.Windows.Forms.Button();
@@ -62,14 +62,15 @@
             this.conn_btn.Text = "Connect";
             this.conn_btn.UseVisualStyleBackColor = true;
             // 
-            // set_btn
+            // enable_btn
             // 
-            this.set_btn.Location = new System.Drawing.Point(37, 44);
-            this.set_btn.Name = "set_btn";
-            this.set_btn.Size = new System.Drawing.Size(75, 23);
-            this.set_btn.TabIndex = 0;
-            this.set_btn.Text = "send";
-            this.set_btn.UseVisualStyleBackColor = true;
+            this.enable_btn.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.enable_btn.Location = new System.Drawing.Point(37, 44);
+            this.enable_btn.Name = "enable_btn";
+            this.enable_btn.Size = new System.Drawing.Size(75, 23);
+            this.enable_btn.TabIndex = 0;
+            this.enable_btn.Text = "Disable";
+            this.enable_btn.UseVisualStyleBackColor = true;
             // 
             // check_btn
             // 
@@ -277,7 +278,7 @@
             this.Controls.Add(this.move_btn);
             this.Controls.Add(this.init_btn);
             this.Controls.Add(this.check_btn);
-            this.Controls.Add(this.set_btn);
+            this.Controls.Add(this.enable_btn);
             this.Controls.Add(this.conn_btn);
             this.Name = "Form1";
             this.Text = "Form1";
@@ -289,7 +290,7 @@
         #endregion
 
         private System.Windows.Forms.Button conn_btn;
-        private System.Windows.Forms.Button set_btn;
+        private System.Windows.Forms.Button enable_btn;
         private System.Windows.Forms.Button check_btn;
         private System.Windows.Forms.RichTextBox richTextBox1;
         private System.Windows.Forms.Button init_btn;
