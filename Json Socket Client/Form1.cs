@@ -93,10 +93,13 @@ namespace Json_Socket_Client
             enable_btn.Click += (s, e) =>
             {
                 bool enable = ((Button)s).Text == "Enable";
+                
+                if (enable) ((Button)s).Text = "Disable";
+                else ((Button)s).Text = "Enable";
+
                 atto_enable(enable);
             };
 
-            check_btn.Click += (s, e) => { richTextBox1.AppendText("Check status: " + atto_check() + "\n"); };
             init_btn.Click += (s, e) => { richTextBox1.AppendText("Initialization status: " + atto_init() + "\n"); };
             calib_btn.Click += (s, e) => 
             {
@@ -106,7 +109,6 @@ namespace Json_Socket_Client
             wait_btn.Click += (s, e) => { atto_wait_sample(); };
             lift_btn.Click += (s, e) => { atto_lift_sample(); };
             center_btn.Click += (s, e) => { atto_center_sample(); };
-
 
             move_btn.Click += (s, e) =>
             {
@@ -151,45 +153,32 @@ namespace Json_Socket_Client
             return ok;
         }
 
-        private void atto_enable(bool enable)
+        private int atto_enable(bool enable)
         {
-            for (int i = 0; i < 3; i++) atto_enable(enable);            
+            // en/dis able both axis and movement
+            int ok = 0;
+
+            for (int i = 0; i < 3; i++)
+            {
+                ok += atto_enable_axis(i, enable);
+                ok += atto_enable_axis_move(i, enable);
+            }
+            return ok;
         }
 
         private bool atto_init()
         {
             // initialize params for all actuators. volt, dc level, frequency
-            string mvolt_init = "com.attocube.amc.control.setControlAmplitude";
-            //string mvoltDC_init = "com.attocube.amc.control.setControlFixOutputVoltage";
-            string mHz_init = "com.attocube.amc.control.setControlFrequency";
-            string enable_axis = "com.attocube.amc.control.setControlOutput";
-            string enable_axis_move = "com.attocube.amc.control.setControlMove";
-
-            bool ok = true;
-
-            for (int i = 0; i < 3; i++)
-                if (str_to_int(transmit_receive(mvolt_init, 0, new object[] { i, atto_mVolt[i] })[0]) != 0)
-                    ok = false;
-
-            //for (int i = 0; i < 3; i++)
-            //    if (str_to_int(transmit_receive(mvoltDC_init, 0, new int[] { i, atto_mVoltDC[i] })[0]) != 0)
-            //        ok = false;
-
-            for (int i = 0; i < 3; i++)
-                if (str_to_int(transmit_receive(mHz_init, 0, new object[] { i, atto_mHz[i] })[0]) != 0)
-                    ok = false;
-
-            for (int i = 0; i < 3; i++)
-                if (str_to_int(transmit_receive(enable_axis, 0, new object[] { i, true })[0]) != 0)
-                    ok = false;
+            int ok = 0;
 
             for (int i = 0; i < 3; i++)
             {
-                atto_move(i, 0);
-                if (str_to_int(transmit_receive(enable_axis_move, 0, new object[] { i, true })[0]) != 0)
-                    ok = false;
+                ok += atto_set_volt(i, atto_mVolt[i]);
+                ok += atto_set_freq(i, atto_mHz[i]);
             }
-            return ok;
+            ok += atto_enable(true);
+
+            return (ok == 0);
         }
 
         private void atto_calibrate()
@@ -208,24 +197,18 @@ namespace Json_Socket_Client
                 while (true)
                 {
                     // 2. check if reference is crossed
-                    if (atto_ref[i])
-                    {
-                        Console.WriteLine("found ref!");
-                        atto_enable_axis(i, false); break;
-                    }
+                    if (atto_ref[i]) { atto_enable_axis_move(i, false); break; }
 
                     // 3. if you find end of travel point move to the oposite direction
                     if (atto_end_of_travel(i)) atto_move(i, -atto_safe_EOT[i]);
                 }
 
                 // 4. goto reference mark and set this as the new zero
-                Console.WriteLine(atto_ref_pos[i]);
-                atto_enable_axis(i, true);
+                atto_enable_axis_move(i, true);
                 atto_move(i, str_to_int(atto_positions[i]) - str_to_int(atto_ref_pos[i]));
                 
                 // 5. set this position as zero
                 axis_ref_reset(i);
-                // atto_move(i, 0);                
             }
         }
 
@@ -329,15 +312,10 @@ namespace Json_Socket_Client
             return transmit_receive(ref_pos_rdb, 0, new object[] { axis })[1];
         }
 
-        private bool atto_move(int axis, int pos)
+        private int atto_move(int axis, int pos)
         {
             string move_to_pos = "com.attocube.amc.move.setControlTargetPosition";
-            bool ok = true;
-
-            if (str_to_int(transmit_receive(move_to_pos, 0, new object[] { axis, pos })[0]) != 0)
-                ok = false;
-
-            return ok;
+            return str_to_int(transmit_receive(move_to_pos, 0, new object[] { axis, pos })[0]);
         }
 
         private bool atto_end_of_travel(int axis)
@@ -364,24 +342,39 @@ namespace Json_Socket_Client
 
         }
 
-        private bool atto_enable_axis(int axis, bool enable)
+        private int atto_enable_axis(int axis, bool enable)
         {
-            string enable_axis = "com.attocube.amc.control.setControlMove";
-            bool ok = true;
+            string enable_axis = "com.attocube.amc.control.setControlOutput";
+            return str_to_int(transmit_receive(enable_axis, 0, new object[] { axis, enable })[0]);
+        }
 
-            if (str_to_int(transmit_receive(enable_axis, 0, new object[] { axis, enable })[0]) != 0)
-                ok = false;
+        private int atto_enable_axis_move(int axis, bool enable)
+        {
+            // before enabling, reset last move command. Else onEnable axis will start to move
+            if (enable) atto_move(axis, str_to_int(atto_positions[axis]));
 
-            return ok;
+            string enable_axis_move = "com.attocube.amc.control.setControlMove";
+            return str_to_int(transmit_receive(enable_axis_move, 0, new object[] { axis, enable })[0]);
         }
 
         private int axis_ref_reset(int axis)
         {
             string ref_reset = "com.attocube.amc.control.setReset";
             return str_to_int(transmit_receive(ref_reset, 0, new object[] { axis })[0]);
+        }        
+
+        private int atto_set_volt(int axis, int mVolt)
+        {
+            string mvolt_set = "com.attocube.amc.control.setControlAmplitude";
+            return str_to_int(transmit_receive(mvolt_set, 0, new object[] { axis, mVolt })[0]);
         }
 
-        
+        private int atto_set_freq(int axis, int mHZ)
+        {
+            string mHz_init = "com.attocube.amc.control.setControlFrequency";
+            return str_to_int(transmit_receive(mHz_init, 0, new object[] { axis, mHZ })[0]);
+        }
+
 
         private string[] transmit_receive(string method, int id, object[] parameters = null)
         {
@@ -468,35 +461,6 @@ namespace Json_Socket_Client
 
 
     #region Notes
-    //int starting_pos = str_to_int(atto_positions[i]);
-    //int j = 0;
-    //int step = 100000;
-
-    //while (true)
-    //{
-    //    if (atto_ref[i])
-    //    {
-    //        Console.WriteLine("found ref!");
-    //        atto_enable_axis(i, false); break;
-    //    }
-
-    //    j++;
-    //    int next_pos = starting_pos + j * step;
-
-    //    atto_move(i, next_pos);
-    //    Thread.Sleep(250);
-
-    //    int dx = Math.Abs(next_pos - str_to_int(atto_positions[i]));
-    //    Console.WriteLine("dx: " + dx.ToString());
-
-    //    if (dx > 500)
-    //    {
-    //        Console.WriteLine("eot found!");
-    //        starting_pos = str_to_int(atto_positions[i]);
-    //        j = 0;
-    //        step = -step;
-    //    }                    
-    //}
 
     #endregion
 }
