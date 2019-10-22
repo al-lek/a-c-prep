@@ -20,6 +20,7 @@ namespace Json_Socket_Client
     {
         Socket socket;
         bool connected = false;
+        bool calibrating = false;
         private static readonly Object _lock = new Object();
 
         bool[] atto_connected = new bool[] { false, false, false };
@@ -188,6 +189,7 @@ namespace Json_Socket_Client
             // reset refs????
             atto_ref = new bool[] { false, false, false };
 
+            calibrating = true;
             // routine of movements to find absolute positions
             for (int i = 0; i < 3; i++)
             {
@@ -210,6 +212,7 @@ namespace Json_Socket_Client
                 // 5. set this position as zero
                 axis_ref_reset(i);
             }
+            calibrating = false;
         }
 
         private bool atto_wait_sample()
@@ -268,7 +271,9 @@ namespace Json_Socket_Client
                 catch { Console.WriteLine("readback loop ex!"); }
 
                 rdb_to_UI();
-                Thread.Sleep(50);
+
+                // maximize readback repetition when calibrating. (It can go faster, but code will be a mess!)
+                if (!calibrating) Thread.Sleep(50);
             }
             if (i_error > -1) MessageBox.Show("Actuator: " + i_error + " has lost connection!\nCheck power and cabling. Terminating connection with attocubes!");
         }
